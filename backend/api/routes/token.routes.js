@@ -1,10 +1,12 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const Token = require('../../models/token.model');
 const securityAnalyzer = require('../../services/securityAnalyzer.service');
+const config = require('../../config/config');
 
 const router = express.Router();
 
-// Middleware per verificare il token JWT (importato da user.routes.js)
+// Middleware per verificare il token JWT
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -28,17 +30,48 @@ router.get('/trending', async (req, res) => {
   try {
     const { blockchain, limit = 10, offset = 0 } = req.query;
     
+    // Prima cerca nel database
     let query = { isTrending: true };
     if (blockchain) {
       query.blockchain = blockchain;
     }
     
-    const tokens = await Token.find(query)
+    let tokens = await Token.find(query)
       .sort({ 'marketData.volume24h': -1 })
       .skip(parseInt(offset))
       .limit(parseInt(limit));
     
-    const total = await Token.countDocuments(query);
+    // Se non ci sono abbastanza token nel database, recupera dati in tempo reale
+    if (tokens.length < parseInt(limit)) {
+      // Importa il servizio per i dati dei token
+      const tokenDataService = require('../../services/tokenData.service');
+      
+      try {
+        // Recupera i token di tendenza in tempo reale
+        const trendingTokens = await tokenDataService.getTrendingTokens(
+          blockchain, 
+          parseInt(limit)
+        );
+        
+        // Se abbiamo già alcuni token dal database, combina i risultati
+        // Altrimenti usa solo i token recuperati in tempo reale
+        if (tokens.length > 0) {
+          // Filtra per evitare duplicati (in base all'indirizzo del contratto)
+          const existingAddresses = new Set(tokens.map(t => t.contractAddress));
+          const newTokens = trendingTokens.filter(t => !existingAddresses.has(t.contractAddress));
+          
+          // Aggiungi i nuovi token e limita al numero richiesto
+          tokens = [...tokens, ...newTokens].slice(0, parseInt(limit));
+        } else {
+          tokens = trendingTokens;
+        }
+      } catch (serviceError) {
+        console.error('Errore nel servizio di dati token:', serviceError);
+        // Continua con i dati che abbiamo dal database
+      }
+    }
+    
+    const total = tokens.length;
     
     res.status(200).json({
       tokens,
@@ -83,12 +116,43 @@ router.get('/search', async (req, res) => {
       query.blockchain = blockchain;
     }
     
-    const tokens = await Token.find(query)
+    // Cerca nel database
+    let tokens = await Token.find(query)
       .sort({ 'marketData.marketCap': -1 })
       .skip(parseInt(offset))
       .limit(parseInt(limit));
     
-    const total = await Token.countDocuments(query);
+    // Se non abbiamo trovato abbastanza risultati, prova la ricerca in tempo reale
+    if (tokens.length < parseInt(limit)) {
+      // Importa il servizio per i dati dei token
+      const tokenDataService = require('../../services/tokenData.service');
+      
+      try {
+        // Ricerca token in tempo reale
+        const searchResults = await tokenDataService.searchTokens(
+          q,
+          blockchain,
+          parseInt(limit)
+        );
+        
+        // Se abbiamo giu00e0 alcuni token dal database, combina i risultati
+        if (tokens.length > 0) {
+          // Filtra per evitare duplicati
+          const existingAddresses = new Set(tokens.map(t => t.contractAddress));
+          const newTokens = searchResults.filter(t => !existingAddresses.has(t.contractAddress));
+          
+          // Aggiungi i nuovi token e limita al numero richiesto
+          tokens = [...tokens, ...newTokens].slice(0, parseInt(limit));
+        } else {
+          tokens = searchResults;
+        }
+      } catch (serviceError) {
+        console.error('Errore nel servizio di ricerca token:', serviceError);
+        // Continua con i risultati dal database
+      }
+    }
+    
+    const total = tokens.length;
     
     res.status(200).json({
       tokens,
@@ -110,35 +174,93 @@ router.get('/:contractAddress', async (req, res) => {
     const { contractAddress } = req.params;
     const { blockchain } = req.query;
     
+    if (!blockchain) {
+      return res.status(400).json({ message: 'Parametro blockchain obbligatorio' });
+    }
+    
+    // Importa i servizi necessari
+    const tokenDataService = require('../../services/tokenData.service');
+    
+    // Cerca prima nel database
     let query = { contractAddress };
-    if (blockchain) {
-      query.blockchain = blockchain;
-    }
+    query.blockchain = blockchain;
     
-    const token = await Token.findOne(query);
+    let token = await Token.findOne(query);
+    let tokenData = null;
     
+    // Se il token non u00e8 nel database, recupera i dati in tempo reale
     if (!token) {
-      // Se il token non u00e8 nel database, prova ad analizzarlo dinamicamente
-      if (!blockchain) {
-        return res.status(400).json({ message: 'Parametro blockchain obbligatorio per token non in database' });
+      try {
+        // Recupera informazioni di base sul token
+        const basicInfo = await tokenDataService.getTokenBasicInfo(contractAddress, blockchain);
+        
+        if (basicInfo) {
+          // Recupera dati di mercato
+          const marketData = await tokenDataService.getTokenMarketData(contractAddress, blockchain);
+          
+          // Analizza la sicurezza del contratto
+          const securityAnalysis = await securityAnalyzer.analyzeContract(contractAddress, blockchain);
+          
+          // Combina tutte le informazioni
+          tokenData = {
+            ...basicInfo,
+            marketData: marketData || basicInfo.marketData,
+            securityAnalysis: securityAnalysis.success ? {
+              isHoneypot: securityAnalysis.honeypotRisk === 'high',
+              rugPullRisk: securityAnalysis.riskLevel,
+              contractVerified: securityAnalysis.isVerified,
+              hasOwnershipFunctions: securityAnalysis.hasOwnershipFunctions,
+              warningFlags: securityAnalysis.suspiciousPatterns,
+              securityScore: securityAnalysis.riskScore,
+            } : null,
+          };
+          
+          // Potresti voler salvare il token nel database per futuri accessi
+          // In un'implementazione reale, questo verrebbe fatto in background
+          try {
+            const newToken = new Token(tokenData);
+            await newToken.save();
+            token = newToken;
+          } catch (dbError) {
+            console.error('Errore nel salvataggio del token nel database:', dbError);
+            // Continua anche se il salvataggio fallisce
+          }
+        }
+      } catch (lookupError) {
+        console.error('Errore durante il recupero dei dati del token:', lookupError);
+        // Se non siamo riusciti a recuperare il token, restituisci un errore
+        if (!token && !tokenData) {
+          return res.status(404).json({ message: 'Token non trovato o non valido' });
+        }
       }
-      
-      const analysis = await securityAnalyzer.analyzeContract(contractAddress, blockchain);
-      
-      if (!analysis.success) {
-        return res.status(404).json({ message: 'Token non trovato o non valido' });
-      }
-      
-      // Per ora ritorniamo solo l'analisi, senza salvare nel database
-      return res.status(200).json({
-        token: null,
-        analysis,
-        message: 'Token non presente nel database, analisi dinamica eseguita',
-      });
     }
     
+    // Se abbiamo trovato il token nel database, aggiorna i dati di mercato se necessario
+    if (token && token.marketData && token.marketData.lastUpdated) {
+      const lastUpdateTime = new Date(token.marketData.lastUpdated).getTime();
+      const currentTime = Date.now();
+      const timeDifference = currentTime - lastUpdateTime;
+      
+      // Se i dati di mercato sono vecchi di più di 30 minuti, aggiornali
+      if (timeDifference > 30 * 60 * 1000) {
+        try {
+          const freshMarketData = await tokenDataService.getTokenMarketData(contractAddress, blockchain);
+          if (freshMarketData) {
+            token.marketData = freshMarketData;
+            token.updatedAt = new Date();
+            await token.save();
+          }
+        } catch (marketDataError) {
+          console.error('Errore durante l\'aggiornamento dei dati di mercato:', marketDataError);
+          // Continua con i dati esistenti
+        }
+      }
+    }
+    
+    // Restituisci i dati del token, con priorità al token dal database
     res.status(200).json({
-      token,
+      token: token || tokenData,
+      fromDatabase: !!token,
     });
   } catch (error) {
     console.error('Errore durante il recupero dei dettagli del token:', error);
