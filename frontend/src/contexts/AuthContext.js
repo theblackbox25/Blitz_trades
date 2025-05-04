@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       axios.interceptors.request.eject(interceptor);
     };
-  }, [token]);
+  }, [token, fetchUserProfile]);
 
   // Fetch user profile
   const fetchUserProfile = async () => {
@@ -108,8 +108,8 @@ export const AuthProvider = ({ children }) => {
   // Update user profile
   const updateProfile = async (userData) => {
     try {
-      const response = await axios.put('/api/users/profile', userData);
-      setCurrentUser(response.data.user);
+      const result = await axios.put('/api/users/profile', userData);
+      setCurrentUser(result.data.user);
       return { success: true };
     } catch (error) {
       console.error('Profile update error:', error);

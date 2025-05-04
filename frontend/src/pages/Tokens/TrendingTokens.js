@@ -26,7 +26,8 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import SecurityIcon from '@mui/icons-material/Security';
-import AssessmentIcon from '@mui/icons-material/Assessment';
+// Le icone inutilizzate sono commentate per ora
+// import AssessmentIcon from '@mui/icons-material/Assessment';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { tokenService } from '../../services/api';
@@ -46,7 +47,7 @@ const TrendingTokens = () => {
 
   useEffect(() => {
     fetchTrendingTokens();
-  }, [selectedBlockchain, page]);
+  }, [selectedBlockchain, page, fetchTrendingTokens]);
 
   const fetchTrendingTokens = async () => {
     try {

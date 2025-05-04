@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -12,8 +12,8 @@ import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import TrendingTokens from './pages/Tokens/TrendingTokens';
 import TokenDetails from './pages/Tokens/TokenDetails';
-import SmartWallets from './pages/Wallets/SmartWallets';
-import WalletDetails from './pages/Wallets/WalletDetails';
+import SmartWallets from './pages/Wallets/SmartWallets.jsx';
+import WalletDetails from './pages/Wallets/WalletDetails.jsx';
 import TradingBots from './pages/Trading/TradingBots';
 import BotDetails from './pages/Trading/BotDetails';
 import CreateBot from './pages/Trading/CreateBot';

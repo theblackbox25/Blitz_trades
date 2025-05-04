@@ -9,7 +9,6 @@ import {
   Button,
   Alert,
   CircularProgress,
-  Divider,
   IconButton,
   Tooltip,
   Card,
@@ -30,7 +29,8 @@ import WarningIcon from '@mui/icons-material/Warning';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
-import ShowChartIcon from '@mui/icons-material/ShowChart';
+// Le icone inutilizzate sono commentate per ora
+// import ShowChartIcon from '@mui/icons-material/ShowChart';
 import PeopleIcon from '@mui/icons-material/People';
 import LockIcon from '@mui/icons-material/Lock';
 import BlockIcon from '@mui/icons-material/Block';
@@ -66,7 +66,7 @@ const TokenDetails = () => {
     }
     
     fetchTokenDetails();
-  }, [address, blockchain]);
+  }, [address, blockchain, fetchTokenDetails]);
   
   const fetchTokenDetails = async () => {
     try {

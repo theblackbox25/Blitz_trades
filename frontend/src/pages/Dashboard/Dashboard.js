@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Grid, Paper, Typography, Box, Button, Card, CardContent, CardHeader, Chip } from '@mui/material';
+import { Grid, Typography, Box, Button, Card, CardContent, CardHeader, Chip } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import SecurityIcon from '@mui/icons-material/Security';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
-import { tokenService, walletService, tradingService } from '../../services/api';
+// Questi servizi saranno utilizzati in una implementazione completa
+// import { tokenService, walletService, tradingService } from '../../services/api';
 
 // Dummy data
 const trendingTokens = [
