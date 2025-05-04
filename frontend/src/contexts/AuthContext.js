@@ -14,6 +14,26 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('authToken'));
   const [loading, setLoading] = useState(true);
 
+  // Logout user - definita per prima in modo da poterla usare in fetchUserProfile
+  const logout = () => {
+    localStorage.removeItem('authToken');
+    setToken(null);
+    setCurrentUser(null);
+  };
+  
+  // Fetch user profile - definita prima dell'useEffect che la utilizza
+  const fetchUserProfile = async () => {
+    try {
+      const response = await axios.get('/api/users/profile');
+      setCurrentUser(response.data.user);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      logout();
+      setLoading(false);
+    }
+  };
+
   // Set up axios interceptor for auth headers
   useEffect(() => {
     const interceptor = axios.interceptors.request.use(
@@ -38,20 +58,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       axios.interceptors.request.eject(interceptor);
     };
-  }, [token, fetchUserProfile]);
-
-  // Fetch user profile
-  const fetchUserProfile = async () => {
-    try {
-      const response = await axios.get('/api/users/profile');
-      setCurrentUser(response.data.user);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      logout();
-      setLoading(false);
-    }
-  };
+  }, [token]); // Non è necessario includere fetchUserProfile nelle dipendenze
 
   // Register a new user
   const register = async (username, email, password) => {
@@ -98,12 +105,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Logout user
-  const logout = () => {
+  // Logout user è già definito sopra
+  /* const logout = () => {
     localStorage.removeItem('authToken');
     setToken(null);
     setCurrentUser(null);
-  };
+  }; */
 
   // Update user profile
   const updateProfile = async (userData) => {
