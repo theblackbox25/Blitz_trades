@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
+import { userService } from '../services/api';
 
 // Create context
 const AuthContext = createContext();
@@ -24,8 +25,9 @@ export const AuthProvider = ({ children }) => {
   // Fetch user profile - definita prima dell'useEffect che la utilizza
   const fetchUserProfile = async () => {
     try {
-      const response = await axios.get('/api/users/profile');
-      setCurrentUser(response.data.user);
+      // Usa il servizio API mockato
+      const response = await userService.getProfile();
+      setCurrentUser(response.user);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -63,13 +65,9 @@ export const AuthProvider = ({ children }) => {
   // Register a new user
   const register = async (username, email, password) => {
     try {
-      const response = await axios.post('/api/users/register', {
-        username,
-        email,
-        password,
-      });
-
-      const { token, user } = response.data;
+      // Usa il servizio API mockato
+      const result = await userService.register(username, email, password);
+      const { token, user } = result;
       localStorage.setItem('authToken', token);
       setToken(token);
       setCurrentUser(user);
@@ -78,7 +76,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Registration error:', error);
       return {
         success: false,
-        message: error.response?.data?.message || 'Errore durante la registrazione',
+        message: error.message || 'Errore durante la registrazione',
       };
     }
   };
@@ -86,12 +84,9 @@ export const AuthProvider = ({ children }) => {
   // Login user
   const login = async (email, password) => {
     try {
-      const response = await axios.post('/api/users/login', {
-        email,
-        password,
-      });
-
-      const { token, user } = response.data;
+      // Usa il servizio API mockato
+      const result = await userService.login(email, password);
+      const { token, user } = result;
       localStorage.setItem('authToken', token);
       setToken(token);
       setCurrentUser(user);
@@ -100,29 +95,23 @@ export const AuthProvider = ({ children }) => {
       console.error('Login error:', error);
       return {
         success: false,
-        message: error.response?.data?.message || 'Credenziali non valide',
+        message: error.message || 'Credenziali non valide',
       };
     }
   };
 
-  // Logout user è già definito sopra
-  /* const logout = () => {
-    localStorage.removeItem('authToken');
-    setToken(null);
-    setCurrentUser(null);
-  }; */
-
   // Update user profile
   const updateProfile = async (userData) => {
     try {
-      const result = await axios.put('/api/users/profile', userData);
-      setCurrentUser(result.data.user);
+      // Usa il servizio API mockato
+      const result = await userService.updateProfile(userData);
+      setCurrentUser(result.user);
       return { success: true };
     } catch (error) {
       console.error('Profile update error:', error);
       return {
         success: false,
-        message: error.response?.data?.message || 'Errore durante l\'aggiornamento del profilo',
+        message: error.message || 'Errore durante l\'aggiornamento del profilo',
       };
     }
   };
@@ -130,16 +119,14 @@ export const AuthProvider = ({ children }) => {
   // Change password
   const changePassword = async (currentPassword, newPassword) => {
     try {
-      const response = await axios.put('/api/users/change-password', {
-        currentPassword,
-        newPassword,
-      });
+      // Usa il servizio API mockato
+      const result = await userService.changePassword(currentPassword, newPassword);
       return { success: true };
     } catch (error) {
       console.error('Password change error:', error);
       return {
         success: false,
-        message: error.response?.data?.message || 'Errore durante la modifica della password',
+        message: error.message || 'Errore durante la modifica della password',
       };
     }
   };
@@ -147,21 +134,18 @@ export const AuthProvider = ({ children }) => {
   // Add wallet to user
   const addWallet = async (name, address, blockchain) => {
     try {
-      const response = await axios.post('/api/users/wallets', {
-        name,
-        address,
-        blockchain,
-      });
+      // Usa il servizio API mockato
+      const result = await userService.addWallet(name, address, blockchain);
       setCurrentUser(prev => ({
         ...prev,
-        wallets: response.data.wallets,
+        wallets: result.wallets,
       }));
       return { success: true };
     } catch (error) {
       console.error('Add wallet error:', error);
       return {
         success: false,
-        message: error.response?.data?.message || 'Errore durante l\'aggiunta del wallet',
+        message: error.message || 'Errore durante l\'aggiunta del wallet',
       };
     }
   };
@@ -169,17 +153,18 @@ export const AuthProvider = ({ children }) => {
   // Remove wallet from user
   const removeWallet = async (walletId) => {
     try {
-      const response = await axios.delete(`/api/users/wallets/${walletId}`);
+      // Usa il servizio API mockato
+      const result = await userService.removeWallet(walletId);
       setCurrentUser(prev => ({
         ...prev,
-        wallets: response.data.wallets,
+        wallets: result.wallets,
       }));
       return { success: true };
     } catch (error) {
       console.error('Remove wallet error:', error);
       return {
         success: false,
-        message: error.response?.data?.message || 'Errore durante la rimozione del wallet',
+        message: error.message || 'Errore durante la rimozione del wallet',
       };
     }
   };
