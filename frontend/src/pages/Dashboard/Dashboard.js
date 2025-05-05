@@ -264,13 +264,13 @@ const Dashboard = () => {
   const getRiskColor = (risk) => {
     switch (risk) {
       case 'low':
-        return 'success.main';
+        return theme.palette.success.main;
       case 'medium':
-        return 'warning.main';
+        return theme.palette.warning.main;
       case 'high':
-        return 'error.main';
+        return theme.palette.error.main;
       default:
-        return 'text.secondary';
+        return theme.palette.text.secondary;
     }
   };
 
